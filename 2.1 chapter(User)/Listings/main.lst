@@ -1,0 +1,369 @@
+C51 COMPILER V9.56.0.0   MAIN                                                              04/04/2021 22:43:19 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\10.1 keil51\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver;..\Sys) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          //代码名称：蚂蚁工厂国家一等奖大模板
+   2          //代码简称：国一模板
+   3          //本代码版本：V2.0
+   4          
+   5          //***************************
+   6          //V1.0代码涉及的资源模块(省赛高频模块考点)
+   7          //--Timer(定时器1)
+   8          //--bsp_ds1302(时钟)
+   9          //--bsp_iic(AD/DA/EEPROM)
+  10          //--bsp_init(关闭外设)
+  11          //--bsp_key(按键)
+  12          //--bsp_led(LED)
+  13          //--bsp_onewire(温度传感器)
+  14          //--bsp_seg(数码管)
+  15          //更新日期：2021.3.3
+  16          
+  17          //***************************
+  18          //V2.0新增资源模块（省赛低频，国赛高频考点)
+  19          //--Usart（串口1）
+  20          //--bsp_555_PWM_Freq(555频率）
+  21          //--bsp_ultrasonic(超声波)
+  22          //更新日期：2021.4.4
+  23          
+  24          //研发单位：北京以小科技有限公司蚂蚁工厂科技实验室
+  25          //代码作者：杜永博
+  26          //版权所有，侵权必究
+  27          
+  28          
+  29          #include "stdio.h"//给sprintf专用
+  30          
+  31          #include "Timer.h"//内部就一个
+  32          
+  33          #include "bsp_init.h"//外部挺多余的
+  34          #include "bsp_key.h"//三大金刚之1 key 用手触摸的
+  35          #include "bsp_seg.h"//三大金刚之2 seg 用眼能看到
+  36          #include "bsp_led.h"//三大金刚之3 led 你还弥红灯了，晃眼，我不爱你
+  37          
+  38          
+  39          
+  40          //根据考核模块添加头文件
+  41          
+  42          //--考察温度传感器时用
+  43          //#include "bsp_onewire.h"
+  44          
+  45          //--考察时钟时专用
+  46          //#include "bsp_ds1302.h"
+  47          
+  48          //--考察EEPROM/AD/DA时用
+  49          //#include "bsp_iic.h"
+  50          
+  51          //--考察555频率测量时候使用
+  52          //#include "bsp_555_PWM_Freq.h"
+  53          
+  54          //--考察串口时候使用
+C51 COMPILER V9.56.0.0   MAIN                                                              04/04/2021 22:43:19 PAGE 2   
+
+  55          //#include "Usart.h"
+  56          
+  57          //--考察超声波的时候使用
+  58          //#include "bsp_ultrasonic.h"
+  59          
+  60          
+  61          
+  62          //三大金刚函数声明区
+  63          void Key_Proc(void);
+  64          void Seg_Proc(void);
+  65          void Led_Proc(void);
+  66          
+  67          
+  68          //根据考核内容，其他函数声明区
+  69          //--考察串口时候使用
+  70          //void Uart_Proc(void);
+  71          
+  72          
+  73          //变量区
+  74          //--定时器滴答变量
+  75          unsigned long ms_Tick = 0;
+  76          
+  77          //--定时器减速变量
+  78          unsigned int Key_Slow_Down;
+  79          unsigned int Seg_Slow_Down;
+  80          unsigned int Led_Slow_Down;
+  81          
+  82          
+  83          //--按键专用变量
+  84          unsigned char Key_Value;
+  85          unsigned char Key_Old, Key_Down;
+  86          
+  87          //--数码管专用变量
+  88          unsigned char seg_string[10];
+  89          unsigned char seg_buf[8] = {0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff};
+  90          unsigned char pos;
+  91          
+  92          //--LED专用变量
+  93          unsigned char ucLed;
+  94          
+  95          
+  96          
+  97          /***用户自定义变量区开始↓***/
+  98          
+  99          bit state_flag = 0;//测试模板好坏需要用的一个变量
+ 100          
+ 101          //--EEPROM测试专用变量
+ 102          //unsigned char eeprom_string[4] = {11,12,13,14};
+ 103          //unsigned char eeprom_string_null[4];
+ 104          
+ 105          //--时钟专用变量
+ 106          //unsigned char Rtc[3] = {23,59,55};
+ 107          
+ 108          //--555测量频率专用变量
+ 109          //unsigned int freq;
+ 110          
+ 111          //--串口专用变量
+ 112          //unsigned int Usart_Slow_Down;
+ 113          //unsigned char Uart_Buf[8];//数据发送和接收的缓存区
+ 114          //unsigned char Uart_Buf_Index = 0;
+ 115          
+ 116          /***用户自定义变量区结束↑***/
+C51 COMPILER V9.56.0.0   MAIN                                                              04/04/2021 22:43:19 PAGE 3   
+
+ 117          
+ 118          void Delay1000ms()    //@12.000MHz
+ 119          {
+ 120   1        unsigned char i, j, k;
+ 121   1      
+ 122   1      
+ 123   1        i = 46;
+ 124   1        j = 153;
+ 125   1        k = 245;
+ 126   1        do
+ 127   1        {
+ 128   2          do
+ 129   2          {
+ 130   3            while (--k);
+ 131   3          } while (--j);
+ 132   2        } while (--i);
+ 133   1      }
+ 134          
+ 135          
+ 136          void main(void)
+ 137          {
+ 138   1      
+ 139   1        Cls_Peripheral();//关闭LED/继电器/蜂鸣器
+ 140   1        Timer1Init();//定时器1初始化
+ 141   1        EA = 1;//打开总中断
+ 142   1      Delay1000ms();
+ 143   1        //--EEPROM测试
+ 144   1        //EEPROM_Write(eeprom_string, 0, 4);  
+ 145   1        
+ 146   1        //--时钟测试
+ 147   1        //Set_Rtc(Rtc);
+ 148   1        
+ 149   1        //--555测量频率专用的初始化函数
+ 150   1        //PWM_555_Freq_Timer0Init();    //配置成了计数器模式，不自动重装
+ 151   1        
+ 152   1        //--串口专用
+ 153   1        //UsartInit();
+ 154   1        
+ 155   1        //--超声波专用
+ 156   1        //Ultrasonic_Timer0Init();    
+ 157   1      
+ 158   1        while(1)
+ 159   1        {
+ 160   2          Key_Proc();//三大金刚子函数
+ 161   2          Seg_Proc();
+ 162   2          Led_Proc();
+ 163   2          
+ 164   2          //--串口专用
+ 165   2      //    Uart_Proc();
+ 166   2          
+ 167   2        }
+ 168   1      }
+ 169          
+ 170          
+ 171          
+ 172          /* Timer1_interrupt routine */
+ 173          void tm1_isr() interrupt 3
+ 174          {
+ 175   1        ms_Tick++;//滴答定时器，能记录的数据长达29天
+ 176   1        
+ 177   1        if(++Key_Slow_Down == 10) Key_Slow_Down = 0;//减速变量区，控制子函数的刷新频率
+ 178   1        if(++Seg_Slow_Down == 500) Seg_Slow_Down = 0; 
+C51 COMPILER V9.56.0.0   MAIN                                                              04/04/2021 22:43:19 PAGE 4   
+
+ 179   1        if(++Led_Slow_Down == 100) Led_Slow_Down = 0; 
+ 180   1      //--串口专用减速
+ 181   1      //  if(++Usart_Slow_Down == 100) Usart_Slow_Down = 0; 
+ 182   1        
+ 183   1        
+ 184   1      //--555测量频率专用的测量函数
+ 185   1      //    if((ms_Tick%1000) == 0)
+ 186   1      //  {
+ 187   1      //    freq = ((TH0<<8)|TL0);
+ 188   1      //    TH0 = 0;
+ 189   1      //    TL0 = 0;
+ 190   1      //  }
+ 191   1        
+ 192   1        
+ 193   1        
+ 194   1        
+ 195   1        
+ 196   1        Seg_Disp(seg_buf, pos);//用于数码管显示
+ 197   1        if(++pos == 8) pos = 0;
+ 198   1        
+ 199   1        Led_Disp(ucLed);//用于LED显示
+ 200   1        
+ 201   1      }
+ 202          
+ 203          
+ 204          
+ 205          
+ 206          
+ 207          
+ 208          
+ 209          
+ 210          
+ 211          void  Key_Proc(void)
+ 212          {
+ 213   1        if(Key_Slow_Down) return;
+ 214   1        Key_Slow_Down = 1;
+ 215   1        
+ 216   1        //三行代码
+ 217   1        Key_Value = Key_Read();
+ 218   1        Key_Down = Key_Value & (Key_Old ^ Key_Value);//下降沿，按得哪个按键，这个值就是几
+ 219   1        Key_Old = Key_Value;//检测电平，一直按着一直等于一个数
+ 220   1        
+ 221   1        
+ 222   1        /***用户自定义代码区↓***/  
+ 223   1        switch(Key_Down)//这个结构很常见，判别是哪个按键按下去了，根据按键按下的情况，控制内部数据变量的变化
+ 224   1        {
+ 225   2          case 11:
+ 226   2              state_flag ^= 1;//0-（测试数码管和定时器）显示12345678，（测试灯）灯亮；1-温度或者其他值
+ 227   2              break;//这个break很重要
+ 228   2      
+ 229   2        }
+ 230   1        /***用户自定义代码区↑***/    
+ 231   1      
+ 232   1        
+ 233   1      }
+ 234          
+ 235          
+ 236          
+ 237          
+ 238          
+ 239          void Seg_Proc(void)
+ 240          {
+C51 COMPILER V9.56.0.0   MAIN                                                              04/04/2021 22:43:19 PAGE 5   
+
+ 241   1        if(Seg_Slow_Down) return;
+ 242   1        Seg_Slow_Down = 1;
+ 243   1        
+ 244   1        /***用户自定义代码区↓***/  
+ 245   1        if(state_flag == 0)
+ 246   1        {
+ 247   2          sprintf(seg_string,"        "); 
+ 248   2        }   
+ 249   1        else //屏幕上显示的内容，在这个地方，就等同于seg_string中放了什么内容，你敢放什么，我就敢显示什么，不敢装
+             -逼，只限制于seg能显示的范围。
+ 250   1        {
+ 251   2          //--温度传感器专用
+ 252   2          //sprintf(seg_string,"%03d",(unsigned int)(rd_temperature()/16.0)); 
+ 253   2          
+ 254   2          //--时钟专用
+ 255   2          //Read_Rtc(Rtc);
+ 256   2          //sprintf(seg_string,"%02d-%02d-%02d",(unsigned int)Rtc[0],(unsigned int)Rtc[1],(unsigned int)Rtc[2]);  
+ 257   2          
+ 258   2          //--EEPROM测试
+ 259   2          //EEPROM_Read(eeprom_string_null, 0, 4);
+ 260   2          //sprintf(seg_string,"%2d--%2d",(unsigned int)eeprom_string_null[0],(unsigned int)eeprom_string_null[3])
+             -;  
+ 261   2      
+ 262   2          //--AD测试
+ 263   2          //sprintf(seg_string,"%03d",(unsigned int)Pcf8591_Adc(Adj_Res_Channel));  
+ 264   2          
+ 265   2          //--DA测试
+ 266   2          //Pcf8591_Dac(255);
+ 267   2          
+ 268   2          //--555频率测试
+ 269   2          //sprintf(seg_string,"---%5d",freq);  
+ 270   2          
+ 271   2          //--超声波测试
+ 272   2          //sprintf(seg_string,"     %03d",(unsigned int)(Wave_Recv()));  
+ 273   2          
+ 274   2          
+ 275   2        }
+ 276   1        
+ 277   1        /***用户自定义代码区↑***/      
+ 278   1        
+ 279   1        Seg_Tran(seg_string, seg_buf);
+ 280   1      }
+ 281          
+ 282          
+ 283          
+ 284          
+ 285          
+ 286          
+ 287          void  Led_Proc(void)
+ 288          {
+ 289   1        if(Led_Slow_Down) return;
+ 290   1        Led_Slow_Down = 1;
+ 291   1        
+ 292   1        
+ 293   1        /***用户自定义代码区↓***/    
+ 294   1        if(state_flag == 0)
+ 295   1          ucLed = 0xff;     
+ 296   1        else 
+ 297   1          ucLed = 0;  
+ 298   1        /***用户自定义代码区↑***/      
+ 299   1      
+ 300   1      }
+C51 COMPILER V9.56.0.0   MAIN                                                              04/04/2021 22:43:19 PAGE 6   
+
+ 301          
+ 302          
+ 303          
+ 304          /*----------------------------
+ 305          串口专用，UART中断服务程序
+ 306          -----------------------------*/
+ 307          //void Uart() interrupt 4
+ 308          //{
+ 309          //  if (RI)
+ 310          //  {
+ 311          //    RI = 0;                 //清除RI位
+ 312          //    Uart_Buf[Uart_Buf_Index] = SBUF;              //P0显示串口数据
+ 313          //    Uart_Buf_Index++;//第n个数据过来之后，变成了n
+ 314          //  }
+ 315          //}
+ 316          
+ 317          /*----------------------------
+ 318          串口专用，串口处理子程序
+ 319          -----------------------------*/
+ 320          //void Uart_Proc(void)
+ 321          //{
+ 322          //  if(Usart_Slow_Down) return;
+ 323          //    Usart_Slow_Down = 1;
+ 324          //  
+ 325          //  if(Uart_Buf_Index != 0)//表示接收到了数据
+ 326          //  {
+ 327          //    Uart_Buf_Index = 0;
+ 328          
+ 329          //    sprintf(seg_string,"%s",Uart_Buf);      
+ 330          //    Usart_Send_String(seg_string);
+ 331          //  }
+ 332          //}
+ 333          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    310    ----
+   CONSTANT SIZE    =      9    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     33    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

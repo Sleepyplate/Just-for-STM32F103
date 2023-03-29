@@ -1,0 +1,251 @@
+C51 COMPILER V9.56.0.0   MAIN                                                              03/08/2021 16:54:13 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\10.1 keil51\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\Driver;..\Sys) DEBUG OBJEC
+                    -TEXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          //蚂蚁工厂国一大模板
+   2          //头文件、函数声明、变量声明的顺序
+   3          //定时器→按键→数码管→LED
+   4          
+   5          
+   6          #include "stdio.h"
+   7          
+   8          #include "Timer.h"
+   9          
+  10          #include "bsp_init.h"
+  11          #include "bsp_key.h"
+  12          #include "bsp_seg.h"
+  13          #include "bsp_led.h"
+  14          
+  15          //根据考核模块添加头文件
+  16          
+  17          //--温度传感器测试专用
+  18          //#include "bsp_onewire.h"
+  19          
+  20          //时钟测试专用
+  21          #include "bsp_ds1302.h"
+  22          
+  23          //--EEPROM/AD/DA需要使用的头文件
+  24          //#include "bsp_iic.h"
+  25          
+  26          
+  27          
+  28          //三大金刚函数声明区
+  29          void Key_Proc(void);
+  30          void Seg_Proc(void);
+  31          void Led_Proc(void);
+  32          
+  33          //模板变量区
+  34          //--定时器滴答变量
+  35          unsigned long ms_Tick = 0;
+  36          
+  37          //--定时器减速变量
+  38          unsigned int Key_Slow_Down;
+  39          unsigned int Seg_Slow_Down;
+  40          unsigned int Led_Slow_Down;
+  41          
+  42          //--按键专用变量
+  43          unsigned char Key_Value;
+  44          unsigned char Key_Old, Key_Down;
+  45          
+  46          //--数码管专用变量
+  47          unsigned char seg_string[10];
+  48          unsigned char seg_buf[8];
+  49          unsigned char pos;
+  50          
+  51          //--LED专用变量
+  52          unsigned char ucLed;
+  53          
+  54          
+C51 COMPILER V9.56.0.0   MAIN                                                              03/08/2021 16:54:13 PAGE 2   
+
+  55          
+  56          
+  57          /***用户自定义变量区开始↓***/
+  58          bit state_flag = 1;
+  59          
+  60          //--EEPROM测试专用变量
+  61          //unsigned char eeprom_string[4] = {11,12,13,14};
+  62          //unsigned char eeprom_string_null[4];
+  63          
+  64          //--时钟专用变量
+  65          unsigned char Rtc[3] = {23,59,55};
+  66          
+  67          
+  68          /***用户自定义变量区结束↑***/
+  69          
+  70          
+  71          
+  72          void main(void)
+  73          {
+  74   1      
+  75   1        Cls_Peripheral();//关闭LED/继电器/蜂鸣器
+  76   1        Timer1Init();//定时器1初始化
+  77   1        EA = 1;//打开总中断
+  78   1      
+  79   1        //--EEPROM测试
+  80   1        //EEPROM_Write(eeprom_string, 0, 4);  
+  81   1        
+  82   1        //--时钟测试
+  83   1        Set_Rtc(Rtc);
+  84   1        
+  85   1        
+  86   1        while(1)
+  87   1        {
+  88   2          Key_Proc();
+  89   2          Seg_Proc();
+  90   2          Led_Proc();
+  91   2      
+  92   2        }
+  93   1      }
+  94          
+  95          
+  96          /* Timer1_interrupt routine */
+  97          void tm1_isr() interrupt 3
+  98          {
+  99   1        ms_Tick++;
+ 100   1        if(++Key_Slow_Down == 10) Key_Slow_Down = 0;
+ 101   1        if(++Seg_Slow_Down == 500) Seg_Slow_Down = 0; 
+ 102   1        if(++Led_Slow_Down == 100) Led_Slow_Down = 0; 
+ 103   1        
+ 104   1        
+ 105   1        
+ 106   1        
+ 107   1        
+ 108   1        Seg_Disp(seg_buf, pos);
+ 109   1        if(++pos == 8) pos = 0;
+ 110   1        
+ 111   1        Led_Disp(ucLed);
+ 112   1        
+ 113   1      }
+ 114          
+ 115          
+ 116          
+C51 COMPILER V9.56.0.0   MAIN                                                              03/08/2021 16:54:13 PAGE 3   
+
+ 117          
+ 118          
+ 119          
+ 120          
+ 121          
+ 122          
+ 123          void  Key_Proc(void)
+ 124          {
+ 125   1        if(Key_Slow_Down) return;
+ 126   1        Key_Slow_Down = 1;
+ 127   1        
+ 128   1        
+ 129   1        Key_Value = Key_Read();
+ 130   1        Key_Down = Key_Value & (Key_Old ^ Key_Value);//下降沿，按得哪个按键，这个值就是几
+ 131   1        Key_Old = Key_Value;//检测电平，一直按着一直等于一个数
+ 132   1        
+ 133   1        
+ 134   1        /***用户自定义代码区↓***/  
+ 135   1        switch(Key_Down)
+ 136   1        {
+ 137   2          case 11:
+ 138   2              state_flag ^= 1;//0-（测试数码管和定时器）显示12345678，（测试灯）灯亮；1-温度或者其他值
+ 139   2              break;
+ 140   2      
+ 141   2      
+ 142   2        }
+ 143   1        /***用户自定义代码区↑***/    
+ 144   1      
+ 145   1        
+ 146   1      }
+ 147          
+ 148          
+ 149          
+ 150          
+ 151          
+ 152          void Seg_Proc(void)
+ 153          {
+ 154   1        if(Seg_Slow_Down) return;
+ 155   1        Seg_Slow_Down = 1;
+ 156   1        
+ 157   1        
+ 158   1        
+ 159   1        /***用户自定义代码区↓***/  
+ 160   1        if(state_flag == 0)
+ 161   1          sprintf(seg_string,"12345678");     
+ 162   1        else 
+ 163   1        {
+ 164   2          //--温度传感器专用
+ 165   2      //    sprintf(seg_string,"%03d",(unsigned int)(rd_temperature()/16.0)); 
+ 166   2          
+ 167   2          //--时钟专用
+ 168   2          Read_Rtc(Rtc);
+ 169   2          sprintf(seg_string,"%02d-%02d-%02d",(unsigned int)Rtc[0],(unsigned int)Rtc[1],(unsigned int)Rtc[2]);  
+ 170   2          
+ 171   2          
+ 172   2          
+ 173   2          //--EEPROM测试
+ 174   2      //    EEPROM_Read(eeprom_string_null, 0, 4);
+ 175   2      //    sprintf(seg_string,"%2d--%2d",(unsigned int)eeprom_string_null[0],(unsigned int)eeprom_string_null[3])
+             -;  
+ 176   2      
+ 177   2          //--AD测试
+C51 COMPILER V9.56.0.0   MAIN                                                              03/08/2021 16:54:13 PAGE 4   
+
+ 178   2      //    sprintf(seg_string,"%03d",(unsigned int)Pcf8591_Adc(Adj_Res_Channel));  
+ 179   2          
+ 180   2          //--DA测试
+ 181   2      //    Pcf8591_Dac(255);
+ 182   2          
+ 183   2          
+ 184   2          
+ 185   2          
+ 186   2        }
+ 187   1        
+ 188   1        /***用户自定义代码区↑***/      
+ 189   1        
+ 190   1      
+ 191   1        
+ 192   1        Seg_Tran(seg_string, seg_buf);
+ 193   1      
+ 194   1      }
+ 195          
+ 196          
+ 197          
+ 198          
+ 199          
+ 200          
+ 201          void  Led_Proc(void)
+ 202          {
+ 203   1        if(Led_Slow_Down) return;
+ 204   1        Led_Slow_Down = 1;
+ 205   1      
+ 206   1        
+ 207   1        
+ 208   1        /***用户自定义代码区↓***/    
+ 209   1        if(state_flag == 0)
+ 210   1          ucLed = 0xff;     
+ 211   1        else 
+ 212   1          ucLed = 0;  
+ 213   1      
+ 214   1        /***用户自定义代码区↑***/      
+ 215   1        
+ 216   1      
+ 217   1      }
+ 218          
+ 219          
+ 220          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    341    ----
+   CONSTANT SIZE    =     24    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     36    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

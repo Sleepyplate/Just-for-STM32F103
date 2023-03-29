@@ -1,0 +1,1 @@
+"..\Driver\bsp_555_PWM_Freq.c" OPTIMIZE (8,SPEED) BROWSE INCDIR(..\Driver;..\Sys) DEBUG OBJECTEXTEND PRINT(.\Listings\bsp_555_PWM_Freq.lst) TABS (2) OBJECT(.\Objects\bsp_555_PWM_Freq.obj)
